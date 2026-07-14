@@ -3,8 +3,25 @@ import { useExpenseStore, actions } from "@/lib/expense-store";
 import { CURRENCIES } from "@/lib/currency";
 import { exportCSV } from "@/lib/expense-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useTheme } from "@/components/theme-provider";
 import { Sun, Moon, Monitor, Download, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -18,9 +35,16 @@ function SettingsPage() {
   const { expenses, settings } = useExpenseStore();
   const { theme, setTheme } = useTheme();
   const fileRef = useRef<HTMLInputElement>(null);
+  const themeOptions = [
+    { v: "light", l: "Light", i: <Sun className="h-4 w-4" /> },
+    { v: "dark", l: "Dark", i: <Moon className="h-4 w-4" /> },
+    { v: "system", l: "System", i: <Monitor className="h-4 w-4" /> },
+  ] as const;
 
   const backup = () => {
-    const blob = new Blob([JSON.stringify({ expenses, settings }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ expenses, settings }, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -47,17 +71,15 @@ function SettingsPage() {
   return (
     <div className="grid max-w-3xl gap-4">
       <Card className="shadow-soft">
-        <CardHeader><CardTitle>Appearance</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { v: "light", l: "Light", i: <Sun className="h-4 w-4" /> },
-              { v: "dark", l: "Dark", i: <Moon className="h-4 w-4" /> },
-              { v: "system", l: "System", i: <Monitor className="h-4 w-4" /> },
-            ].map((t) => (
+            {themeOptions.map((t) => (
               <button
                 key={t.v}
-                onClick={() => setTheme(t.v as any)}
+                onClick={() => setTheme(t.v)}
                 className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition-all hover:border-primary ${theme === t.v ? "border-primary bg-accent/50 shadow-soft" : ""}`}
               >
                 {t.i}
@@ -69,13 +91,25 @@ function SettingsPage() {
       </Card>
 
       <Card className="shadow-soft">
-        <CardHeader><CardTitle>Currency</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Currency</CardTitle>
+        </CardHeader>
         <CardContent>
-          <Select value={settings.currency} onValueChange={async (v) => { await actions.updateSettings({ currency: v }); toast.success("Currency updated"); }}>
-            <SelectTrigger className="w-full max-w-xs"><SelectValue /></SelectTrigger>
+          <Select
+            value={settings.currency}
+            onValueChange={async (v) => {
+              await actions.updateSettings({ currency: v });
+              toast.success("Currency updated");
+            }}
+          >
+            <SelectTrigger className="w-full max-w-xs">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {Object.entries(CURRENCIES).map(([code, meta]) => (
-                <SelectItem key={code} value={code}>{meta.symbol} {code} — {meta.name}</SelectItem>
+                <SelectItem key={code} value={code}>
+                  {meta.symbol} {code} — {meta.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -83,22 +117,65 @@ function SettingsPage() {
       </Card>
 
       <Card className="shadow-soft">
-        <CardHeader><CardTitle>Data</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Data</CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
-          <Button variant="outline" onClick={backup}><Download className="mr-2 h-4 w-4" /> Backup JSON</Button>
-          <Button variant="outline" onClick={() => exportCSV(expenses)}><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
+          <Button variant="outline" onClick={backup}>
+            <Download className="mr-2 h-4 w-4" /> Backup JSON
+          </Button>
+          <Button variant="outline" onClick={() => exportCSV(expenses)}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
           <Button variant="outline" onClick={() => fileRef.current?.click()}>
             <Upload className="mr-2 h-4 w-4" /> Restore backup
           </Button>
-          <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) restore(f); e.target.value = ""; }} />
-          <Button variant="destructive" onClick={async () => { if (confirm("Delete ALL expenses? This cannot be undone.")) { await actions.clearAll(); toast.success("All expenses deleted"); } }}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete all data
-          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) restore(f);
+              e.target.value = "";
+            }}
+          />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Reset data
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset all tracking data?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes every expense and restores your currency and monthly
+                  budget to their defaults. Your account remains active.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async () => {
+                    await actions.resetData();
+                    toast.success("Your tracking data has been reset");
+                  }}
+                >
+                  Reset data
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 
       <Card className="shadow-soft">
-        <CardHeader><CardTitle>About</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>About</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>Spendly · Beautiful personal finance</p>
           <p>{expenses.length} expenses securely stored in your account.</p>
