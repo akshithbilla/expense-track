@@ -3,7 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
-import { Moon, Sun, Search, LogOut } from "lucide-react";
+import { Moon, Sun, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getSessionUser, signOut } from "@/lib/server-auth";
 import { ExpenseDialog } from "@/components/expense-dialog";
@@ -25,8 +25,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
 function AppLayout() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
-  const [name, setName] = useState("");
-  useEffect(() => { getSessionUser().then((user) => { if (!user) void navigate({ to: "/login" }); else setName(user.name); }).finally(() => setReady(true)); }, [navigate]);
+  useEffect(() => { getSessionUser().then((user) => { if (!user) void navigate({ to: "/login" }); }).finally(() => setReady(true)); }, [navigate]);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const meta = TITLES[path] ?? { title: "Spendly", subtitle: "" };
   const { theme, setTheme, resolved } = useTheme();
@@ -35,7 +34,7 @@ function AppLayout() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
+        <AppSidebar onSignOut={async () => { await signOut(); await navigate({ to: "/" }); }} />
         <div className="flex flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/70 px-4 backdrop-blur-xl sm:px-6">
             <SidebarTrigger className="shrink-0" />
@@ -56,7 +55,6 @@ function AppLayout() {
               >
                 {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
-              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={async () => { await signOut(); await navigate({ to: "/" }); }}><LogOut className="mr-1.5 h-4 w-4" /> {name ? "Sign out" : "Exit"}</Button>
               <ExpenseDialog />
             </div>
           </header>

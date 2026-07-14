@@ -25,16 +25,18 @@ async function verifyPassword(password: string, encoded: string) {
   return timingSafeEqual(derived, Buffer.from(key, "hex"));
 }
 function sign(id: string) {
-  const payload = `${id}.${Date.now() + 1000 * 60 * 60 * 24 * 14}`;
-  return `${payload}.${createHmac("sha256", sessionSecret()).update(payload).digest("hex")}`;
+  return `${id}.${createHmac("sha256", sessionSecret()).update(id).digest("hex")}`;
 }
 function userIdFromSession() {
   const token = getCookie(SESSION);
   if (!token) return null;
-  const [id, expires, signature] = token.split(".");
-  const payload = `${id}.${expires}`;
+  const [id, second, third] = token.split(".");
+  // Existing 14-day tokens remain valid until their original expiry.
+  const expires = third ? second : undefined;
+  const signature = third ?? second;
+  const payload = expires ? `${id}.${expires}` : id;
   const expected = createHmac("sha256", sessionSecret()).update(payload).digest("hex");
-  if (!id || !expires || !signature || signature !== expected || Date.now() > Number(expires) || !ObjectId.isValid(id)) return null;
+  if (!id || !signature || signature !== expected || (expires && Date.now() > Number(expires)) || !ObjectId.isValid(id)) return null;
   return new ObjectId(id);
 }
 async function currentUser() {
@@ -43,7 +45,17 @@ async function currentUser() {
   return getDb().then((db) => db.collection<User>("users").findOne({ _id: id }));
 }
 function publicUser(user: User) { return { id: user._id.toString(), email: user.email, name: user.name, settings: user.settings }; }
-function establishSession(user: User) { setCookie(SESSION, sign(user._id.toString()), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 14 }); }
+function establishSession(user: User, rememberMe = true) {
+  setCookie(SESSION, sign(user._id.toString()), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    // The session itself has no server-side expiry. Browsers cap persistent
+    // cookies at about 400 days; Sign out always removes it immediately.
+    ...(rememberMe ? { maxAge: 60 * 60 * 24 * 400 } : {}),
+  });
+}
 
 export async function getSessionUser() {
   const user = await currentUser();
@@ -60,10 +72,10 @@ export async function signUp(data: { email: string; password: string; name: stri
   return publicUser(user);
 }
 
-export async function signIn(data: { email: string; password: string }) {
+export async function signIn(data: { email: string; password: string; rememberMe?: boolean }) {
   const user = await (await getDb()).collection<User>("users").findOne({ email: data.email });
   if (!user || !(await verifyPassword(data.password, user.passwordHash))) throw new Error("Incorrect email or password.");
-  establishSession(user);
+  establishSession(user, data.rememberMe ?? true);
   return publicUser(user);
 }
 

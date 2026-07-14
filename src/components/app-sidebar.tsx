@@ -6,6 +6,7 @@ import {
   Wallet,
   CalendarDays,
   Settings as SettingsIcon,
+  LogOut,
   Sparkles,
 } from "lucide-react";
 import {
@@ -32,7 +33,7 @@ const nav = [
 
 const secondary = [{ title: "Settings", url: "/settings", icon: SettingsIcon }];
 
-export function AppSidebar() {
+export function AppSidebar({ onSignOut }: { onSignOut: () => void | Promise<void> }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
@@ -99,16 +100,22 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border">
         {!collapsed ? (
-          <div className="rounded-xl bg-gradient-brand p-3 text-white shadow-elegant">
-            <p className="text-xs font-medium opacity-90">Pro tip</p>
-            <p className="mt-1 text-[11px] leading-relaxed opacity-80">
-              Press <kbd className="rounded bg-white/20 px-1">N</kbd> to quickly add a new expense.
-            </p>
-          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => void onSignOut()} tooltip="Sign out" className="text-muted-foreground hover:text-destructive">
+                <LogOut className="h-4 w-4" />
+                <span>Sign out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         ) : (
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-brand">
-            <Sparkles className="h-3.5 w-3.5 text-white" />
-          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => void onSignOut()} tooltip="Sign out" className="text-muted-foreground hover:text-destructive">
+                <LogOut className="h-4 w-4" />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         )}
       </SidebarFooter>
     </Sidebar>
