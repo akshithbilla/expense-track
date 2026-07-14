@@ -4,13 +4,22 @@ import { DEFAULT_CURRENCY } from "./currency";
 import { clearExpenses, createExpense, getAppData, removeExpense, removeExpenses, saveSettings, updateExpenseOnServer } from "./server-data.server";
 
 interface State { expenses: Expense[]; settings: Settings; loading: boolean; }
-const empty: State = { expenses: [], settings: { currency: DEFAULT_CURRENCY, budget: { monthly: 2000 } }, loading: true };
-let state = empty; let loaded = false; const listeners = new Set<() => void>();
+const empty: State = { expenses: [], settings: { currency: DEFAULT_CURRENCY, budget: { monthly: 0 } }, loading: true };
+let state = empty; let loaded = false; let loadVersion = 0; const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((listener) => listener());
 const setState = (updater: (previous: State) => State) => { state = updater(state); emit(); };
-async function load() { try { const data = await getAppData(); setState(() => ({ ...data, loading: false })); } catch { setState((previous) => ({ ...previous, loading: false })); } }
+async function load() {
+  const version = ++loadVersion;
+  try {
+    const data = await getAppData();
+    if (version === loadVersion) setState(() => ({ ...data, loading: false }));
+  } catch {
+    if (version === loadVersion) setState((previous) => ({ ...previous, loading: false }));
+  }
+}
 function subscribe(callback: () => void) { listeners.add(callback); if (!loaded && typeof window !== "undefined") { loaded = true; void load(); } return () => listeners.delete(callback); }
-export function refreshExpenses() { loaded = true; return load(); }
+export function clearExpenseStore() { loadVersion++; loaded = false; setState(() => empty); }
+export function refreshExpenses() { loaded = true; setState(() => empty); return load(); }
 export function useExpenseStore() { return useSyncExternalStore(subscribe, () => state, () => empty); }
 export const actions = {
   async addExpense(expense: Omit<Expense, "id" | "createdAt">) { const created = await createExpense({ data: expense }); setState((s) => ({ ...s, expenses: [created, ...s.expenses] })); return created; },

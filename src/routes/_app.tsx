@@ -6,6 +6,7 @@ import { useTheme } from "@/components/theme-provider";
 import { Moon, Sun, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getSessionUser, signOut } from "@/lib/server-auth";
+import { clearExpenseStore, refreshExpenses } from "@/lib/expense-store";
 import { ExpenseDialog } from "@/components/expense-dialog";
 import { Input } from "@/components/ui/input";
 
@@ -25,7 +26,18 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
 function AppLayout() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
-  useEffect(() => { getSessionUser().then((user) => { if (!user) void navigate({ to: "/login" }); }).finally(() => setReady(true)); }, [navigate]);
+  useEffect(() => {
+    void getSessionUser()
+      .then(async (user) => {
+        if (!user) {
+          clearExpenseStore();
+          await navigate({ to: "/login" });
+          return;
+        }
+        await refreshExpenses();
+      })
+      .finally(() => setReady(true));
+  }, [navigate]);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const meta = TITLES[path] ?? { title: "Spendly", subtitle: "" };
   const { theme, setTheme, resolved } = useTheme();
@@ -34,7 +46,7 @@ function AppLayout() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar onSignOut={async () => { await signOut(); await navigate({ to: "/" }); }} />
+        <AppSidebar onSignOut={async () => { await signOut(); clearExpenseStore(); await navigate({ to: "/" }); }} />
         <div className="flex flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/70 px-4 backdrop-blur-xl sm:px-6">
             <SidebarTrigger className="shrink-0" />

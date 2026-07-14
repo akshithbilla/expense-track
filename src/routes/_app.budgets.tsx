@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useExpenseStore, actions } from "@/lib/expense-store";
 import { formatMoney } from "@/lib/currency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,10 @@ export const Route = createFileRoute("/_app/budgets")({
 function BudgetsPage() {
   const { expenses, settings } = useExpenseStore();
   const [value, setValue] = useState(settings.budget.monthly.toString());
+
+  useEffect(() => {
+    setValue(settings.budget.monthly.toString());
+  }, [settings.budget.monthly]);
 
   const today = new Date();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);

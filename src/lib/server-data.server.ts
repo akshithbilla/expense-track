@@ -13,7 +13,7 @@ const toExpense = ({ _id, userId, ...expense }: ExpenseDoc): Expense => ({ ...ex
 export const getAppData = createServerFn({ method: "GET" }).handler(async () => {
   const userId = await requireUserId(); const db = await getDb();
   const [user, docs] = await Promise.all([db.collection<{ settings: Settings }>("users").findOne({ _id: userId }), db.collection<ExpenseDoc>("expenses").find({ userId }).sort({ createdAt: -1 }).toArray()]);
-  return { expenses: docs.map(toExpense), settings: user?.settings ?? { currency: DEFAULT_CURRENCY, budget: { monthly: 2000 } } };
+  return { expenses: docs.map(toExpense), settings: user?.settings ?? { currency: DEFAULT_CURRENCY, budget: { monthly: 0 } } };
 });
 export const createExpense = createServerFn({ method: "POST" }).validator(expenseSchema).handler(async ({ data }) => { const userId = await requireUserId(); const doc: ExpenseDoc = { _id: new ObjectId(), userId, ...data, category: data.category as Expense["category"], paymentMethod: data.paymentMethod as Expense["paymentMethod"], status: data.status as Expense["status"], recurrence: data.recurrence as Expense["recurrence"], createdAt: Date.now() }; await (await getDb()).collection<ExpenseDoc>("expenses").insertOne(doc); return toExpense(doc); });
 export const updateExpenseOnServer = createServerFn({ method: "POST" }).validator(z.object({ id: z.string(), patch: expenseSchema.partial() })).handler(async ({ data }) => { const userId = await requireUserId(); if (!ObjectId.isValid(data.id)) throw new Error("Invalid expense"); await (await getDb()).collection<ExpenseDoc>("expenses").updateOne({ _id: new ObjectId(data.id), userId }, { $set: data.patch }); return true; });

@@ -66,7 +66,7 @@ export async function signUp(data: { email: string; password: string; name: stri
   const db = await getDb();
   const exists = await db.collection<User>("users").findOne({ email: data.email });
   if (exists) throw new Error("An account with this email already exists.");
-  const user: User = { _id: new ObjectId(), email: data.email, name: data.name, passwordHash: await hashPassword(data.password), settings: { currency: DEFAULT_CURRENCY, budget: { monthly: 2000 } } };
+  const user: User = { _id: new ObjectId(), email: data.email, name: data.name, passwordHash: await hashPassword(data.password), settings: { currency: DEFAULT_CURRENCY, budget: { monthly: 0 } } };
   await db.collection<User>("users").insertOne(user);
   establishSession(user);
   return publicUser(user);
